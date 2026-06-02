@@ -1,0 +1,148 @@
+:root {
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #1d2430;
+  background: #f7f8fa;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px 20px 48px;
+}
+
+header {
+  margin-bottom: 24px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+header p {
+  margin: 8px 0 0;
+  color: #5f6b7a;
+}
+
+section {
+  border-top: 1px solid #d9e0ea;
+  padding: 22px 0;
+}
+
+h2 {
+  margin: 0 0 14px;
+  font-size: 16px;
+}
+
+.hint {
+  margin: -6px 0 14px;
+  color: #6b7582;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: #465363;
+}
+
+.example {
+  color: #7a8492;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.check input {
+  width: auto;
+  min-height: auto;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+input,
+select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid #c9d1dc;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1d2430;
+  font-size: 15px;
+  padding: 8px 10px;
+}
+
+.actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid #d9e0ea;
+  background: rgba(247, 248, 250, 0.94);
+  padding: 16px 0 0;
+}
+
+button,
+.file {
+  border: 1px solid #c9d1dc;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1d2430;
+  font-size: 14px;
+  min-height: 38px;
+  padding: 0 14px;
+  cursor: pointer;
+}
+
+.file {
+  display: inline-flex;
+  align-items: center;
+}
+
+.file input {
+  display: none;
+}
+
+.primary {
+  border-color: #006adc;
+  background: #006adc;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+#status {
+  color: #53606f;
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+  }
+}

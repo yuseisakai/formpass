@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FormPass 設定</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>プロフィール設定</h1>
+        <p>保存した情報はChromeのローカルストレージにだけ保存されます。</p>
+      </header>
+
+      <form id="profileForm">
+        <section>
+          <h2>氏名</h2>
+          <div class="grid">
+            <label>姓<input name="lastName" autocomplete="family-name"></label>
+            <label>名<input name="firstName" autocomplete="given-name"></label>
+            <label>姓カナ<input name="lastNameKana"></label>
+            <label>名カナ<input name="firstNameKana"></label>
+            <label>姓ローマ字<input name="lastNameRoman" autocomplete="family-name"></label>
+            <label>名ローマ字<input name="firstNameRoman" autocomplete="given-name"></label>
+          </div>
+        </section>
+
+        <section>
+          <h2>連絡先</h2>
+          <p class="hint">電話番号はハイフンあり・なしどちらでも保存できます。例: 00000000000 / 000-0000-0000</p>
+          <div class="grid">
+            <label>メール<input name="email" type="email" autocomplete="email"></label>
+            <label>携帯電話 (000-0000-0000)<input name="phoneMobile" type="tel" autocomplete="tel" placeholder="00000000000"></label>
+            <label>自宅電話 (00-0000-0000)<input name="phoneHome" type="tel" placeholder="0000000000"></label>
+          </div>
+        </section>
+
+        <section>
+          <h2>住所</h2>
+          <p class="hint">郵便番号はハイフンあり・なしどちらでも保存できます。例: 0000000 / 000-0000</p>
+          <div class="grid">
+            <label>郵便番号 (000-0000)<input name="postalCode" autocomplete="postal-code" placeholder="0000000"></label>
+            <label>都道府県<input name="prefecture" autocomplete="address-level1"></label>
+            <label>市区郡町村<input name="address1" autocomplete="address-level2"></label>
+            <label>町域・番地 <span class="example">記入例 ３－３－３</span><input name="address2" autocomplete="street-address"></label>
+            <label class="wide">建物名・部屋番号 <span class="example">記入例 〇〇〇マンション１２３号室</span><input name="address3"></label>
+          </div>
+        </section>
+
+        <section>
+          <h2>休暇中の連絡先</h2>
+          <p class="hint">休暇中の郵便番号もハイフンあり・なしどちらでも保存できます。</p>
+          <div class="grid">
+            <label class="check wide">
+              <input name="vacationSameAsCurrent" type="checkbox">
+              現住所と同じ
+            </label>
+            <label>郵便番号 (000-0000)<input name="vacationPostalCode" autocomplete="postal-code" placeholder="0000000"></label>
+            <label>都道府県<input name="vacationPrefecture" autocomplete="address-level1"></label>
+            <label>市区郡町村<input name="vacationAddress1" autocomplete="address-level2"></label>
+            <label>町域・番地 <span class="example">記入例 ３－３－３</span><input name="vacationAddress2" autocomplete="street-address"></label>
+            <label class="wide">建物名・部屋番号 <span class="example">記入例 〇〇〇マンション１２３号室</span><input name="vacationAddress3"></label>
+          </div>
+        </section>
+
+        <section>
+          <h2>基本情報</h2>
+          <div class="grid">
+            <label>生年月日<input name="birthDate" type="date"></label>
+            <label>性別
+              <select name="gender">
+                <option value=""></option>
+                <option value="男性">男性</option>
+                <option value="女性">女性</option>
+                <option value="回答しない">回答しない</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section>
+          <h2>学校</h2>
+          <div class="grid">
+            <label>大学・学校名<input name="university"></label>
+            <label>学部<input name="faculty"></label>
+            <label>学科・専攻<input name="department"></label>
+            <label>ゼミ・研究室<input name="seminar"></label>
+            <label>クラブ・サークル<input name="club"></label>
+            <label>入学年度 (2024)<input name="enrollmentYear" inputmode="numeric" placeholder="2024"></label>
+            <label>入学月 (4)<input name="enrollmentMonth" inputmode="numeric" placeholder="4"></label>
+            <label>卒業予定年度 (2028)<input name="graduationYear" inputmode="numeric" placeholder="2028"></label>
+            <label>卒業予定月 (3)<input name="graduationMonth" inputmode="numeric" placeholder="3"></label>
+          </div>
+        </section>
+
+        <div class="actions">
+          <button class="primary" type="submit">保存</button>
+          <button id="exportProfile" type="button">エクスポート</button>
+          <label class="file">インポート<input id="importProfile" type="file" accept="application/json"></label>
+          <span id="status" role="status"></span>
+        </div>
+      </form>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>

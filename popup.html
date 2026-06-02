@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FormPass</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>FormPass</h1>
+        <button id="openOptions" type="button">設定</button>
+      </header>
+
+      <button id="fill" class="primary" type="button">このページに入力</button>
+      <p id="status" role="status"></p>
+
+      <section>
+        <h2>入力される内容</h2>
+        <div id="profileSummary" class="summary"></div>
+      </section>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>
