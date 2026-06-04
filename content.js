@@ -76,7 +76,9 @@ async function fillWithStoredProfile() {
     }
   }
 
+  filled += fillAddressPrefectures(normalized);
   filled += fillAddressDetailsWithFallback(normalized);
+  filled += fillAddressFieldsByOrder(normalized);
 
   return { ok: true, filled, scanned: elements.length, skipped: skipped.slice(0, 8) };
 }
@@ -93,6 +95,12 @@ function findFillableElements() {
 function detectField(element) {
   const splitField = detectSplitField(element);
   if (splitField) return splitField;
+
+  const addressSelectField = detectAddressSelectField(element);
+  if (addressSelectField) return addressSelectField;
+
+  const addressField = detectAddressDetailField(element);
+  if (addressField) return addressField;
 
   const schoolField = detectSchoolTextField(element);
   if (schoolField) return schoolField;
@@ -203,6 +211,19 @@ function isAddressDetailField(field) {
   ].includes(field);
 }
 
+function fillAddressPrefectures(profile) {
+  const sections = collectAddressSections();
+  let filled = 0;
+  for (const section of sections) {
+    const value = section.isVacation ? profile.vacationPrefecture : profile.prefecture;
+    if (!value) continue;
+    const select = Array.from(section.root.querySelectorAll("select"))
+      .find((item) => normalizeText(getElementLabel(item)).includes("都道府県"));
+    if (select && setSelectValue(select, value)) filled += 1;
+  }
+  return filled;
+}
+
 function fillAddressDetailsWithFallback(profile) {
   const current = readCurrentAddressValues();
   const useCurrentForVacation = profile.vacationSameAsCurrent === "on";
@@ -222,6 +243,63 @@ function fillAddressDetailsWithFallback(profile) {
     if (setElementValue(element, values[field], field)) filled += 1;
   }
   return filled;
+}
+
+function fillAddressFieldsByOrder(profile) {
+  const useCurrentForVacation = profile.vacationSameAsCurrent === "on";
+  const current = {
+    prefecture: profile.prefecture,
+    address1: profile.address1,
+    address2: profile.address2,
+    address3: profile.address3
+  };
+  const vacation = useCurrentForVacation ? current : {
+    prefecture: profile.vacationPrefecture,
+    address1: profile.vacationAddress1,
+    address2: profile.vacationAddress2,
+    address3: profile.vacationAddress3
+  };
+  const pairs = [current, vacation];
+  let filled = 0;
+
+  const prefectures = collectVisibleControls("select")
+    .filter((element) => normalizeText(getElementLabel(element)).includes("都道府県"));
+  filled += setOrderedAddressValues(prefectures, pairs, "prefecture");
+
+  const textControls = collectVisibleControls("input, textarea")
+    .filter((element) => !["checkbox", "radio", "hidden", "submit", "button", "reset", "file", "image"].includes(element.type));
+  filled += setOrderedAddressValues(findByOwnAddressLabel(textControls, "address1"), pairs, "address1");
+  filled += setOrderedAddressValues(findByOwnAddressLabel(textControls, "address2"), pairs, "address2");
+  filled += setOrderedAddressValues(findByOwnAddressLabel(textControls, "address3"), pairs, "address3");
+
+  return filled;
+}
+
+function setOrderedAddressValues(elements, values, key) {
+  let filled = 0;
+  elements.slice(0, values.length).forEach((element, index) => {
+    const value = values[index][key];
+    if (!value) return;
+    if (setElementValue(element, value, index === 0 ? key : `vacation${key[0].toUpperCase()}${key.slice(1)}`)) {
+      filled += 1;
+    }
+  });
+  return filled;
+}
+
+function collectVisibleControls(selector) {
+  return Array.from(document.querySelectorAll(selector))
+    .filter((element) => !element.disabled && !element.readOnly && element.offsetParent !== null);
+}
+
+function findByOwnAddressLabel(elements, field) {
+  return elements.filter((element) => {
+    const label = normalizeText(getElementOwnLabel(element));
+    if (field === "address1") return label.includes("市区郡町村") || label.includes("市区町村") || label.includes("市町村");
+    if (field === "address2") return label.includes("町域番地") || label.includes("町域・番地") || label.includes("番地");
+    if (field === "address3") return label.includes("建物名部屋番号") || label.includes("建物名・部屋番号") || label.includes("部屋番号") || label.includes("建物");
+    return false;
+  });
 }
 
 function readCurrentAddressValues() {
@@ -272,7 +350,7 @@ function collectAddressSections() {
     .filter((section, index, all) => {
       return !all.some((other, otherIndex) => (
         otherIndex !== index
-        && other.root.contains(section.root)
+        && section.root.contains(other.root)
         && other.root !== section.root
       ));
     });
@@ -280,10 +358,24 @@ function collectAddressSections() {
 
 function detectAddressDetailField(element) {
   if (element.tagName === "SELECT") return null;
+  const ownLabel = getElementOwnLabel(element);
+  const sectionKind = getAddressSectionKind(element);
+  const ownField = detectAddressDetailFieldFromText(ownLabel, sectionKind === "vacation" ? "vacation" : "");
+  if (ownField) return ownField;
+
   const label = getElementLabel(element);
-  const isVacation = normalizeText(label).includes("休暇中") || normalizeText(label).includes("現在の連絡先");
-  const prefix = isVacation ? "vacation" : "";
-  return detectAddressDetailFieldFromText(label, prefix);
+  const normalizedLabel = normalizeText(label);
+  const labelKind = normalizedLabel.includes("休暇中") || normalizedLabel.includes("現在の連絡先")
+    ? "vacation"
+    : sectionKind;
+  return detectAddressDetailFieldFromText(label, labelKind === "vacation" ? "vacation" : "");
+}
+
+function detectAddressSelectField(element) {
+  if (element.tagName !== "SELECT") return null;
+  const label = normalizeText(getElementLabel(element));
+  if (!label.includes("都道府県")) return null;
+  return getAddressSectionKind(element) === "vacation" ? "vacationPrefecture" : "prefecture";
 }
 
 function detectAddressDetailFieldFromText(text, prefix = "") {
@@ -303,6 +395,17 @@ function detectAddressDetailFieldFromText(text, prefix = "") {
   }
 
   return null;
+}
+
+function getAddressSectionKind(element) {
+  let current = element.parentElement;
+  for (let depth = 0; current && depth < 9; depth += 1) {
+    const text = normalizeText(current.textContent || "");
+    if (text.includes("休暇中の連絡先") || text.includes("現在の連絡先と同じ")) return "vacation";
+    if (text.includes("現住所") && text.includes("郵便番号")) return "current";
+    current = current.parentElement;
+  }
+  return "";
 }
 
 function wait(ms) {
@@ -372,6 +475,22 @@ function getElementLabel(element) {
   return parts.filter(Boolean).join(" ");
 }
 
+function getElementOwnLabel(element) {
+  const parts = [
+    element.getAttribute("aria-label"),
+    element.placeholder,
+    element.name,
+    element.id,
+    element.autocomplete
+  ];
+
+  if (element.labels) {
+    parts.push(...Array.from(element.labels).map((label) => label.textContent));
+  }
+
+  return parts.filter(Boolean).join(" ");
+}
+
 function detectSplitField(element) {
   const context = normalizeText(getElementLabel(element));
   const group = getFieldGroup(element);
@@ -403,7 +522,10 @@ function detectSplitField(element) {
   }
 
   if (combined.includes("郵便番号")) {
-    const prefix = context.includes("休暇中") || groupText.includes("休暇中") ? "vacationPostalCode" : "postalCode";
+    const sectionKind = getAddressSectionKind(element);
+    const prefix = sectionKind === "vacation" || context.includes("休暇中") || groupText.includes("休暇中")
+      ? "vacationPostalCode"
+      : "postalCode";
     return `${prefix}Part${detectPostalPart(element) || getPartIndex(element, "input") + 1}`;
   }
 
