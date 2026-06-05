@@ -1,64 +1,64 @@
-# FormPass Privacy Policy
+# FormPass プライバシーポリシー
 
-Last updated: June 5, 2026
+最終更新日: 2026年6月5日
 
-FormPass is a Chrome extension that helps users fill profile forms on job-hunting mypage websites.
+FormPassは、就活マイページ等のプロフィール入力を補助するChrome拡張機能です。
 
-## Information Stored by FormPass
+## 保存する情報
 
-FormPass stores the profile information that the user enters on the extension settings page. This may include:
+FormPassは、ユーザーが設定画面で入力したプロフィール情報を保存します。保存される可能性がある情報は以下の通りです。
 
-- Name
-- Furigana and romanized name
-- Date of birth
-- Gender
-- Email address
-- Phone number
-- Address
-- School information
-- Enrollment and expected graduation dates
-- Seminar, laboratory, club, or circle information
+- 氏名
+- フリガナ、ローマ字氏名
+- 生年月日
+- 性別
+- メールアドレス
+- 電話番号
+- 住所
+- 学校情報
+- 入学年月、卒業予定年月
+- ゼミ・研究室、クラブ・サークル等の情報
 
-FormPass does not store passwords, login credentials, authentication information, credit card information, payment information, health information, or financial information.
+FormPassは、パスワード、ログイン認証情報、クレジットカード情報、支払い情報、健康情報、財務情報を保存しません。
 
-## Purpose of Use
+## 利用目的
 
-The stored profile information is used only to help fill forms on pages where the user chooses to run FormPass.
+保存したプロフィール情報は、ユーザーがFormPassを実行したページでフォーム入力を補助する目的でのみ使用します。
 
-FormPass uses the information to:
+FormPassは、保存した情報を以下の目的で使用します。
 
-- Show the user which profile details will be entered
-- Detect supported form fields on the current page
-- Fill matching fields with the saved profile information
+- 入力予定のプロフィール情報をユーザーに表示するため
+- 現在開いているページの入力欄を検出するため
+- 対応する入力欄に保存済みプロフィール情報を入力するため
 
-## Storage Location
+## 保存場所
 
-The saved profile information is stored in Chrome local storage on the user's device.
+保存したプロフィール情報は、ユーザーの端末上のChromeローカルストレージに保存されます。
 
-## External Transmission
+## 外部送信
 
-FormPass does not send saved profile information to any external server.
+FormPassは、保存したプロフィール情報を外部サーバーへ送信しません。
 
-FormPass does not sell, share, or transfer user data to third parties.
+FormPassは、ユーザーデータを第三者に販売、共有、提供しません。
 
-FormPass does not use user data for purposes unrelated to its single purpose of assisting profile form entry.
+FormPassは、フォーム入力補助という単一の目的と関係のない用途でユーザーデータを使用しません。
 
-FormPass does not use user data to determine creditworthiness or for lending purposes.
+FormPassは、信用力の判断や融資目的でユーザーデータを使用しません。
 
-## Remote Code
+## リモートコード
 
-FormPass does not use remote code. The extension runs using JavaScript files included in the extension package.
+FormPassはリモートコードを使用しません。拡張機能パッケージに含まれるJavaScriptファイルのみで動作します。
 
-## Website Access
+## Webサイトへのアクセス
 
-FormPass may access the content of the current webpage only to detect form fields and fill supported fields when the user runs the extension.
+FormPassは、ユーザーが拡張機能を実行した際に、現在開いているページのフォーム入力欄を検出し、対応する項目に入力するためにページ内容へアクセスする場合があります。
 
-Password fields are not targeted by FormPass.
+FormPassは、パスワード入力欄を入力対象にしません。
 
-## Changes to This Policy
+## プライバシーポリシーの変更
 
-This privacy policy may be updated when the extension changes. The latest version will be available in this repository.
+本プライバシーポリシーは、拡張機能の変更に伴い更新される場合があります。最新版は本リポジトリ上で公開します。
 
-## Contact
+## お問い合わせ
 
-For questions about FormPass or this privacy policy, please contact the developer through the GitHub repository.
+FormPassまたは本プライバシーポリシーに関するお問い合わせは、GitHubリポジトリまたは開発者連絡先までお願いします。
