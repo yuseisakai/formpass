@@ -87,12 +87,23 @@ function findFillableElements() {
   return Array.from(document.querySelectorAll("input, textarea, select"))
     .filter((element) => {
       if (element.disabled || element.readOnly) return false;
-      if (element.offsetParent === null && element.type !== "hidden") return false;
+      if (!isVisibleOrCustomSelect(element)) return false;
       return !["hidden", "submit", "button", "reset", "file", "image"].includes(element.type);
     });
 }
 
+function isVisibleOrCustomSelect(element) {
+  if (element.offsetParent !== null) return true;
+  if (element.tagName !== "SELECT") return false;
+  return Boolean(element.closest(".jqTransformSelectWrapper"));
+}
+
 function detectField(element) {
+  if (shouldSkipElement(element)) return null;
+
+  const namedField = detectFieldByNameAttribute(element);
+  if (namedField) return namedField;
+
   const splitField = detectSplitField(element);
   if (splitField) return splitField;
 
@@ -112,6 +123,56 @@ function detectField(element) {
     .sort((a, b) => b.score - a.score);
 
   return candidates[0]?.key;
+}
+
+function shouldSkipElement(element) {
+  const name = normalizeText(element.getAttribute("name") || "");
+  if (/^(account|domain)[3-9]$/.test(name)) return true;
+
+  const label = normalizeText(getElementLabel(element));
+  return label.includes("携帯アドレス");
+}
+
+function detectFieldByNameAttribute(element) {
+  const name = normalizeText(element.getAttribute("name") || "");
+  const fields = {
+    kname1: "lastName",
+    kname2: "firstName",
+    yname1: "lastNameKana",
+    yname2: "firstNameKana",
+    ybirth: "birthYear",
+    mbirth: "birthMonth",
+    dbirth: "birthDay",
+    gyubin1: "postalCodePart1",
+    gyubin2: "postalCodePart2",
+    gken: "prefecture",
+    gadrs1: "addressLine",
+    gadrs2: "address3",
+    gtel1: "phoneHomePart1",
+    gtel2: "phoneHomePart2",
+    gtel3: "phoneHomePart3",
+    kttel1: "phoneMobilePart1",
+    kttel2: "phoneMobilePart2",
+    kttel3: "phoneMobilePart3",
+    kyubin1: "vacationPostalCodePart1",
+    kyubin2: "vacationPostalCodePart2",
+    kken: "vacationPrefecture",
+    kadrs1: "vacationAddressLine",
+    kadrs2: "vacationAddress3",
+    ktel1: "phoneMobilePart1",
+    ktel2: "phoneMobilePart2",
+    ktel3: "phoneMobilePart3",
+    bikoa: "seminar",
+    bikob: "club",
+    syear: "graduationYear",
+    smonth: "graduationMonth",
+    account1: "emailLocalPart",
+    domain1: "emailDomainPart",
+    account2: "emailLocalPart",
+    domain2: "emailDomainPart"
+  };
+
+  return fields[name] || null;
 }
 
 function setElementValue(element, value, field) {
@@ -140,8 +201,29 @@ function setSelectValue(select, value) {
 
   if (!option) return false;
   select.value = option.value;
+  select.selectedIndex = option.index;
+  Array.from(select.options).forEach((item) => {
+    item.selected = item === option;
+    if (item === option) item.setAttribute("selected", "selected");
+    else item.removeAttribute("selected");
+  });
   select.dispatchEvent(new Event("change", { bubbles: true }));
+  select.dispatchEvent(new Event("input", { bubbles: true }));
+  syncJqTransformSelect(select, option);
   return true;
+}
+
+function syncJqTransformSelect(select, option) {
+  const wrapper = select.closest(".jqTransformSelectWrapper");
+  if (!wrapper) return;
+
+  const display = wrapper.querySelector("div > span");
+  if (display) display.textContent = option.textContent || option.value;
+
+  wrapper.querySelectorAll("ul a").forEach((link) => {
+    const isSelected = Number(link.getAttribute("index")) === option.index;
+    link.classList.toggle("selected", isSelected);
+  });
 }
 
 function setChoiceValue(element, value, field) {
@@ -289,7 +371,7 @@ function setOrderedAddressValues(elements, values, key) {
 
 function collectVisibleControls(selector) {
   return Array.from(document.querySelectorAll(selector))
-    .filter((element) => !element.disabled && !element.readOnly && element.offsetParent !== null);
+    .filter((element) => !element.disabled && !element.readOnly && isVisibleOrCustomSelect(element));
 }
 
 function findByOwnAddressLabel(elements, field) {
@@ -339,7 +421,7 @@ function collectAddressSections() {
     .filter((root) => {
       const text = normalizeText(root.textContent || "");
       return text.includes("郵便番号")
-        && text.includes("市区郡町村")
+        && (text.includes("市区郡町村") || text.includes("市区町村") || text.includes("市町村"))
         && text.includes("町域")
         && text.includes("建物");
     })
@@ -420,8 +502,10 @@ function formatValueForField(value, field) {
 
 function isFullWidthField(field) {
   return [
+    "addressLine",
     "address2",
     "address3",
+    "vacationAddressLine",
     "vacationAddress2",
     "vacationAddress3"
   ].includes(field);
@@ -436,7 +520,7 @@ function toFullWidthText(value) {
   return String(value || "")
     .replace(/[!-~]/g, (char) => String.fromCharCode(char.charCodeAt(0) + 0xfee0))
     .replace(/ /g, "　")
-    .replace(/-/g, "－");
+    .replace(/[‐‑‒–—―ー−－-]/g, "－");
 }
 
 function toHalfWidthText(value) {
@@ -466,13 +550,52 @@ function getElementLabel(element) {
     parts.push(...Array.from(element.labels).map((label) => label.textContent));
   }
 
-  const row = element.closest("tr, .form-group, .formItem, .inputItem, dl, li, p, div");
+  const iwebLabel = getIwebDefinitionLabel(element);
+  if (iwebLabel) parts.push(iwebLabel);
+
+  const row = getLabelContainer(element);
   if (row) parts.push(row.textContent);
 
   const previous = element.previousElementSibling;
   if (previous) parts.push(previous.textContent);
 
   return parts.filter(Boolean).join(" ");
+}
+
+function getLabelContainer(element) {
+  const semanticContainer = element.closest("tr, fieldset, li, .form-group, .formItem, .inputItem, .form_item, .form-row, .formRow, .field, .field-row");
+  if (semanticContainer) return semanticContainer;
+
+  let current = element.parentElement;
+  for (let depth = 0; current && depth < 5; depth += 1) {
+    const controls = current.querySelectorAll("input, select, textarea");
+    const text = normalizeText(current.textContent || "");
+    if (controls.length <= 4 && text.length <= 220) return current;
+    current = current.parentElement;
+  }
+
+  return element.parentElement;
+}
+
+function getIwebDefinitionLabel(element) {
+  const container = element.closest("dd") || element.closest("div, p");
+  const dl = element.closest("dl");
+  if (!container || !dl || !dl.contains(container)) return "";
+
+  let label = "";
+  let previous = container.previousElementSibling;
+  while (previous) {
+    const text = normalizeText(previous.textContent || "");
+    const controls = previous.querySelectorAll("input, select, textarea");
+    if (controls.length === 0 && text) {
+      label = previous.textContent || "";
+      break;
+    }
+    previous = previous.previousElementSibling;
+  }
+
+  const containerText = container.textContent || "";
+  return [label, containerText].filter(Boolean).join(" ");
 }
 
 function getElementOwnLabel(element) {
@@ -496,6 +619,18 @@ function detectSplitField(element) {
   const group = getFieldGroup(element);
   const groupText = normalizeText(group?.textContent || "");
   const combined = `${context}${groupText}`;
+  const inputParts = getSplitControls(group || document, "input");
+
+  if (element.tagName === "INPUT" && inputParts.length === 2 && (combined.includes("氏名") || combined.includes("名前"))) {
+    const index = getPartIndex(element, "input");
+    if (combined.includes("ローマ字") || combined.includes("ローマ")) {
+      return ["lastNameRoman", "firstNameRoman"][index] || null;
+    }
+    if (combined.includes("フリガナ") || combined.includes("カナ") || combined.includes("かな")) {
+      return ["lastNameKana", "firstNameKana"][index] || null;
+    }
+    return ["lastName", "firstName"][index] || null;
+  }
 
   if (element.tagName === "INPUT" && combined.includes("漢字氏名")) {
     return ["lastName", "firstName"][getPartIndex(element, "input")] || null;
@@ -579,11 +714,11 @@ function getFieldGroup(element) {
   for (let depth = 0; current && depth < 6; depth += 1) {
     const controls = current.querySelectorAll("input, select, textarea");
     const text = normalizeText(current.textContent || "");
-    if (controls.length > 1 && /氏名|生年月日|入学|卒業|郵便番号|電話番号/.test(text)) return current;
+    if (controls.length > 1 && controls.length <= 4 && /氏名|生年月日|入学|卒業|郵便番号|電話番号/.test(text)) return current;
     current = current.parentElement;
   }
 
-  return element.closest("tr, dl, .form-group, .formItem, .inputItem, li, p, div") || element.parentElement;
+  return getLabelContainer(element);
 }
 
 function getPartIndex(element, selector) {
@@ -604,7 +739,7 @@ function getSplitControls(root, selector) {
   return Array.from(root.querySelectorAll(selector))
     .filter((item) => {
       if (item.disabled || item.readOnly) return false;
-      if (item.offsetParent === null) return false;
+      if (!isVisibleOrCustomSelect(item)) return false;
       if (item.tagName === "INPUT") {
         return ![
           "checkbox",
@@ -641,13 +776,16 @@ function normalizeProfile(profile) {
   const postalCodeParts = splitPostalCode(profile.postalCode);
   const vacationPostalCodeParts = splitPostalCode(vacationAddress.postalCode);
   const phoneMobileParts = splitPhoneNumber(profile.phoneMobile);
-  const phoneHomeParts = splitPhoneNumber(profile.phoneHome);
+  const phoneHomeParts = splitPhoneNumber(profile.phoneHome || profile.phoneMobile);
+  const emailParts = splitEmail(profile.email);
 
   return {
     ...profile,
     fullName: profile.fullName || `${profile.lastName || ""} ${profile.firstName || ""}`.trim(),
     fullNameKana: profile.fullNameKana || `${profile.lastNameKana || ""} ${profile.firstNameKana || ""}`.trim(),
     fullNameRoman: profile.fullNameRoman || `${profile.lastNameRoman || ""} ${profile.firstNameRoman || ""}`.trim(),
+    emailLocalPart: emailParts[0],
+    emailDomainPart: emailParts[1],
     birthYear: profile.birthYear || birthYear,
     birthMonth: profile.birthMonth || monthDayValue(birthMonth),
     birthDay: profile.birthDay || monthDayValue(birthDay),
@@ -658,6 +796,7 @@ function normalizeProfile(profile) {
     graduationMonth: monthDayValue(profile.graduationMonth),
     postalCodePart1: postalCodeParts[0],
     postalCodePart2: postalCodeParts[1],
+    addressLine: joinAddressLine(currentAddress),
     phoneMobilePart1: phoneMobileParts[0],
     phoneMobilePart2: phoneMobileParts[1],
     phoneMobilePart3: phoneMobileParts[2],
@@ -670,8 +809,18 @@ function normalizeProfile(profile) {
     vacationPrefecture: vacationAddress.prefecture,
     vacationAddress1: vacationAddress.address1,
     vacationAddress2: vacationAddress.address2,
+    vacationAddressLine: joinAddressLine(vacationAddress),
     vacationAddress3: vacationAddress.address3
   };
+}
+
+function splitEmail(value) {
+  const [local = "", ...domainParts] = String(value || "").split("@");
+  return [local, domainParts.join("@")];
+}
+
+function joinAddressLine(address) {
+  return `${address.address1 || ""}${address.address2 || ""}`.trim();
 }
 
 function splitAddress(profile, prefix = "") {
