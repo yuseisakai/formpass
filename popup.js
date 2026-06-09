@@ -43,6 +43,7 @@ async function renderProfileSummary() {
       title: "連絡先",
       rows: [
         ["メール", normalized.email],
+        ["第2メール", normalized.emailSecondary],
         ["携帯電話", normalized.phoneMobile],
         ["自宅電話", normalized.phoneHome],
       ]

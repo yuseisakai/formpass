@@ -60,6 +60,7 @@ async function fillWithStoredProfile() {
       continue;
     }
 
+    if (shouldSkipVacationInput(element, field, normalized)) continue;
     if (setElementValue(element, normalized[field], field)) filled += 1;
   }
 
@@ -72,6 +73,7 @@ async function fillWithStoredProfile() {
     for (const element of elements) {
       const field = detectField(element);
       if (!field || !normalized[field]) continue;
+      if (shouldSkipVacationInput(element, field, normalized)) continue;
       if (isAddressDetailField(field) && setElementValue(element, normalized[field], field)) filled += 1;
     }
   }
@@ -104,6 +106,12 @@ function detectField(element) {
   const namedField = detectFieldByNameAttribute(element);
   if (namedField) return namedField;
 
+  const vacationSameField = detectVacationSameAsCurrentField(element);
+  if (vacationSameField) return vacationSameField;
+
+  const secondaryEmailField = detectSecondaryEmailField(element);
+  if (secondaryEmailField) return secondaryEmailField;
+
   const splitField = detectSplitField(element);
   if (splitField) return splitField;
 
@@ -127,10 +135,15 @@ function detectField(element) {
 
 function shouldSkipElement(element) {
   const name = normalizeText(element.getAttribute("name") || "");
-  if (/^(account|domain)[3-9]$/.test(name)) return true;
+  if (/^(account|domain)[5-9]$/.test(name)) return true;
 
   const label = normalizeText(getElementLabel(element));
-  return label.includes("携帯アドレス");
+  return label.includes("携帯アドレス") && !profileHasSecondaryEmailHint(element);
+}
+
+function profileHasSecondaryEmailHint(element) {
+  const name = normalizeText(element.getAttribute("name") || "");
+  return /^(account|domain)[34]$/.test(name);
 }
 
 function detectFieldByNameAttribute(element) {
@@ -159,9 +172,10 @@ function detectFieldByNameAttribute(element) {
     kken: "vacationPrefecture",
     kadrs1: "vacationAddressLine",
     kadrs2: "vacationAddress3",
-    ktel1: "phoneMobilePart1",
-    ktel2: "phoneMobilePart2",
-    ktel3: "phoneMobilePart3",
+    ktel1: "vacationPhonePart1",
+    ktel2: "vacationPhonePart2",
+    ktel3: "vacationPhonePart3",
+    adch: "vacationSameAsCurrent",
     bikoa: "seminar",
     bikob: "club",
     syear: "graduationYear",
@@ -169,10 +183,36 @@ function detectFieldByNameAttribute(element) {
     account1: "emailLocalPart",
     domain1: "emailDomainPart",
     account2: "emailLocalPart",
-    domain2: "emailDomainPart"
+    domain2: "emailDomainPart",
+    account3: "emailSecondaryLocalPart",
+    domain3: "emailSecondaryDomainPart",
+    account4: "emailSecondaryLocalPart",
+    domain4: "emailSecondaryDomainPart"
   };
 
   return fields[name] || null;
+}
+
+function detectSecondaryEmailField(element) {
+  const label = normalizeText(getElementLabel(element));
+  const nearby = normalizeText(getNearbyContainerText(element));
+  if (!label.includes("メール") && !nearby.includes("メール")) return null;
+  if (label.includes("メールアドレス2") || label.includes("メールアドレス二") || label.includes("メール2") || label.includes("第2メール")) {
+    return "emailSecondary";
+  }
+  if (nearby.includes("メールアドレス2") || nearby.includes("メールアドレス二") || nearby.includes("メール2") || nearby.includes("第2メール")) {
+    return "emailSecondary";
+  }
+  return null;
+}
+
+function detectVacationSameAsCurrentField(element) {
+  if (element.type !== "checkbox") return null;
+  const label = normalizeText(`${getElementLabel(element)} ${element.value || ""}`);
+  if (label.includes("現住所と同じ") || label.includes("現在の連絡先と同じ")) {
+    return "vacationSameAsCurrent";
+  }
+  return null;
 }
 
 function setElementValue(element, value, field) {
@@ -227,6 +267,14 @@ function syncJqTransformSelect(select, option) {
 }
 
 function setChoiceValue(element, value, field) {
+  if (field === "vacationSameAsCurrent") {
+    if (value !== "on") return false;
+    if (!element.checked) element.click();
+    element.checked = true;
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+    return true;
+  }
+
   const label = normalizeText(`${getElementLabel(element)} ${element.value}`);
   const expected = normalizeText(value);
   const aliases = choiceAliases(field, expected);
@@ -297,6 +345,7 @@ function fillAddressPrefectures(profile) {
   const sections = collectAddressSections();
   let filled = 0;
   for (const section of sections) {
+    if (section.isVacation && profile.vacationSameAsCurrent === "on") continue;
     const value = section.isVacation ? profile.vacationPrefecture : profile.prefecture;
     if (!value) continue;
     const select = Array.from(section.root.querySelectorAll("select"))
@@ -313,9 +362,9 @@ function fillAddressDetailsWithFallback(profile) {
     address1: profile.address1 || current.address1,
     address2: profile.address2 || current.address2,
     address3: profile.address3 || current.address3,
-    vacationAddress1: useCurrentForVacation ? (profile.address1 || current.address1) : profile.vacationAddress1,
-    vacationAddress2: useCurrentForVacation ? (profile.address2 || current.address2) : profile.vacationAddress2,
-    vacationAddress3: useCurrentForVacation ? (profile.address3 || current.address3) : profile.vacationAddress3
+    vacationAddress1: useCurrentForVacation ? "" : profile.vacationAddress1,
+    vacationAddress2: useCurrentForVacation ? "" : profile.vacationAddress2,
+    vacationAddress3: useCurrentForVacation ? "" : profile.vacationAddress3
   };
 
   let filled = 0;
@@ -335,13 +384,13 @@ function fillAddressFieldsByOrder(profile) {
     address2: profile.address2,
     address3: profile.address3
   };
-  const vacation = useCurrentForVacation ? current : {
+  const vacation = {
     prefecture: profile.vacationPrefecture,
     address1: profile.vacationAddress1,
     address2: profile.vacationAddress2,
     address3: profile.vacationAddress3
   };
-  const pairs = [current, vacation];
+  const pairs = useCurrentForVacation ? [current] : [current, vacation];
   let filled = 0;
 
   const prefectures = collectVisibleControls("select")
@@ -367,6 +416,23 @@ function setOrderedAddressValues(elements, values, key) {
     }
   });
   return filled;
+}
+
+function shouldSkipVacationInput(element, field, profile) {
+  if (profile.vacationSameAsCurrent !== "on") return false;
+  if (field === "vacationSameAsCurrent") return false;
+  if (field.startsWith("vacation")) return true;
+
+  const name = normalizeText(element.getAttribute("name") || "");
+  if (/^(kyubin[12]|kken|kadrs[12]|ktel[123])$/.test(name)) return true;
+  return isVacationContactElement(element);
+}
+
+function isVacationContactElement(element) {
+  const label = normalizeText(getElementLabel(element));
+  return label.includes("休暇中の連絡先")
+    || label.includes("休暇中住所")
+    || label.includes("休暇中連絡先");
 }
 
 function collectVisibleControls(selector) {
@@ -512,7 +578,7 @@ function isFullWidthField(field) {
 }
 
 function isHalfWidthNumericField(field) {
-  return /^(postalCode|vacationPostalCode|phoneMobile|phoneHome).*(Part\d)?$/.test(field)
+  return /^(postalCode|vacationPostalCode|phoneMobile|phoneHome|vacationPhone).*(Part\d)?$/.test(field)
     || ["birthYear", "birthMonth", "birthDay", "enrollmentYear", "enrollmentMonth", "graduationYear", "graduationMonth"].includes(field);
 }
 
@@ -575,6 +641,17 @@ function getLabelContainer(element) {
   }
 
   return element.parentElement;
+}
+
+function getNearbyContainerText(element) {
+  let current = element.parentElement;
+  for (let depth = 0; current && depth < 6; depth += 1) {
+    const controls = current.querySelectorAll("input, select, textarea");
+    const text = current.textContent || "";
+    if (controls.length <= 4 && normalizeText(text).length <= 260) return text;
+    current = current.parentElement;
+  }
+  return "";
 }
 
 function getIwebDefinitionLabel(element) {
@@ -681,7 +758,11 @@ function detectSplitField(element) {
   }
 
   if (combined.includes("電話番号") && element.tagName === "INPUT") {
-    return `phoneMobilePart${getPartIndex(element, "input") + 1}`;
+    const sectionKind = getAddressSectionKind(element);
+    const prefix = sectionKind === "vacation" || context.includes("休暇中") || groupText.includes("休暇中")
+      ? "vacationPhone"
+      : "phoneMobile";
+    return `${prefix}Part${getPartIndex(element, "input") + 1}`;
   }
 
   return null;
@@ -772,12 +853,17 @@ function normalizeProfile(profile) {
   const birthDate = profile.birthDate || "";
   const [birthYear = "", birthMonth = "", birthDay = ""] = birthDate.split("-");
   const currentAddress = splitAddress(profile);
-  const vacationAddress = profile.vacationSameAsCurrent === "on" ? currentAddress : splitAddress(profile, "vacation");
+  const useCurrentForVacation = profile.vacationSameAsCurrent === "on";
+  const vacationAddress = useCurrentForVacation
+    ? { postalCode: "", prefecture: "", address1: "", address2: "", address3: "" }
+    : splitAddress(profile, "vacation");
   const postalCodeParts = splitPostalCode(profile.postalCode);
   const vacationPostalCodeParts = splitPostalCode(vacationAddress.postalCode);
   const phoneMobileParts = splitPhoneNumber(profile.phoneMobile);
   const phoneHomeParts = splitPhoneNumber(profile.phoneHome || profile.phoneMobile);
+  const vacationPhoneParts = useCurrentForVacation ? ["", "", ""] : splitPhoneNumber(profile.phoneMobile);
   const emailParts = splitEmail(profile.email);
+  const emailSecondaryParts = splitEmail(profile.emailSecondary);
 
   return {
     ...profile,
@@ -786,6 +872,8 @@ function normalizeProfile(profile) {
     fullNameRoman: profile.fullNameRoman || `${profile.lastNameRoman || ""} ${profile.firstNameRoman || ""}`.trim(),
     emailLocalPart: emailParts[0],
     emailDomainPart: emailParts[1],
+    emailSecondaryLocalPart: emailSecondaryParts[0],
+    emailSecondaryDomainPart: emailSecondaryParts[1],
     birthYear: profile.birthYear || birthYear,
     birthMonth: profile.birthMonth || monthDayValue(birthMonth),
     birthDay: profile.birthDay || monthDayValue(birthDay),
@@ -810,7 +898,10 @@ function normalizeProfile(profile) {
     vacationAddress1: vacationAddress.address1,
     vacationAddress2: vacationAddress.address2,
     vacationAddressLine: joinAddressLine(vacationAddress),
-    vacationAddress3: vacationAddress.address3
+    vacationAddress3: vacationAddress.address3,
+    vacationPhonePart1: vacationPhoneParts[0],
+    vacationPhonePart2: vacationPhoneParts[1],
+    vacationPhonePart3: vacationPhoneParts[2]
   };
 }
 
